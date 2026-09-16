@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chunk viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1d2433; --muted:#5d6678; --line:#d6dbe4; --paper:#f7f8fa; --panel:#ffffff;
+    --focus:#2f5fd0;
+    --t-pedido:#2f5fd0; --t-email:#8a5a00; --t-teste:#1f7a4d; --t-documentacao:#6b4fa3;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font:14px/1.5 "IBM Plex Sans",system-ui,sans-serif;color:var(--ink);background:var(--paper);display:grid;grid-template-rows:auto auto 1fr}
+  #sem{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--paper)}
+  #sem b{font-weight:600}
+  #sq{min-width:360px;flex:1;max-width:620px}
+  #semstat{color:var(--muted)}
+  .result{background:var(--panel);border:1px solid var(--line);border-radius:6px;margin:0 0 10px;max-width:900px;cursor:pointer;display:block;width:100%;text-align:left;padding:0}
+  .result:hover{border-color:var(--focus)}
+  .result .rt{display:flex;gap:10px;align-items:baseline;padding:8px 12px 0}
+  .score{font:500 12px "IBM Plex Mono",monospace;background:#e8eefb;color:var(--focus);border-radius:4px;padding:1px 6px}
+  .result .rmeta{padding:2px 12px 6px;color:var(--muted);font-size:12px;border-bottom:1px solid var(--line)}
+  .result .rtext{margin:0;padding:10px 12px;white-space:pre-wrap;word-break:break-word;font:13px/1.55 "IBM Plex Mono",monospace;color:var(--ink)}
+  .result .ropen{padding:6px 12px 8px;font-size:12px;color:var(--focus);border-top:1px solid var(--line)}
+  .result{user-select:text}
+  .chunk.target{box-shadow:0 0 0 3px #ffe38a}
+  header{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{font-size:15px;font-weight:600;margin:0 8px 0 0}
+  input,select,button{font:inherit;color:inherit}
+  input[type=search],select{border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:#fff}
+  input[type=search]{min-width:260px}
+  button,.file{border:1px solid var(--line);border-radius:6px;padding:6px 12px;background:#fff;cursor:pointer}
+  .file input{display:none}
+  :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .stat{color:var(--muted);margin-left:auto}
+  main{display:grid;grid-template-columns:320px 1fr;min-height:0}
+  #docs{overflow:auto;border-right:1px solid var(--line);background:var(--panel)}
+  #docs button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:8px 14px;background:none}
+  #docs button:hover{background:var(--paper)}
+  #docs button[aria-current=true]{background:#e8eefb;box-shadow:inset 3px 0 0 var(--focus)}
+  #docs small{display:block;color:var(--muted)}
+  #view{overflow:auto;padding:20px 28px 60px}
+  .empty{max-width:520px;margin:12vh auto;color:var(--muted)}
+  .empty h2{color:var(--ink);font-size:18px;margin:0 0 8px}
+  .doctitle{font-size:20px;font-weight:600;margin:0 0 4px}
+  .docmeta{color:var(--muted);margin-bottom:20px}
+  .record{border-left:3px solid var(--c);padding-left:14px;margin:0 0 26px}
+  .rechead{display:flex;gap:10px;align-items:baseline;margin-bottom:8px;color:var(--c);font-weight:600}
+  .rechead span{color:var(--muted);font-weight:400}
+  .topic{margin:14px 0 8px;font-weight:600}
+  .topic span{color:var(--muted);font-weight:400}
+  .chunk{background:var(--panel);border:1px solid var(--line);border-radius:6px;margin:0 0 10px;max-width:900px}
+  .chunk.hit{border-color:var(--focus)}
+  .cmeta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+  .ctitle{padding:8px 12px 0;font-weight:600}
+  .ctitle small{font-weight:400;color:var(--muted);margin-left:6px}
+  .cmeta b{font-family:"IBM Plex Mono",monospace;font-weight:500;color:var(--ink)}
+  .small{color:#b3261e}
+  .chip{font:12px "IBM Plex Mono",monospace;border:1px solid var(--line);border-radius:4px;padding:1px 6px;background:var(--paper);cursor:pointer}
+  .chip.main{border-color:var(--ink)}
+  pre{margin:0;padding:10px 12px;white-space:pre-wrap;word-break:break-word;font:13px/1.55 "IBM Plex Mono",monospace;max-height:none}
+  .header-line{color:var(--focus)}
+  .overlap{color:var(--muted)}
+  mark{background:#ffe38a;padding:0}
+  .tp-pedido{--c:var(--t-pedido)} .tp-email{--c:var(--t-email)} .tp-teste{--c:var(--t-teste)} .tp-documentacao{--c:var(--t-documentacao)}
+  @media (max-width:760px){main{grid-template-columns:1fr;grid-template-rows:38vh 1fr}#docs{border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Chunk viewer</h1>
+  <label class="file">Open chunks file<input id="file" type="file" accept=".jsonl,.json"></label>
+  <input id="q" type="search" placeholder="Search text, document or program (e.g. FATU61)" disabled>
+  <select id="type" disabled>
+    <option value="">All record types</option>
+    <option>pedido</option><option>email</option><option>teste</option><option>documentacao</option>
+  </select>
+  <label><input id="embed" type="checkbox"> Show embedded text</label>
+  <span class="stat" id="stat"></span>
+</header>
+<div id="sem">
+  <b>Semantic search</b>
+  <label class="file">Load embeddings<input id="embfiles" type="file" accept=".npy,.json" multiple></label>
+  <input id="sq" type="search" placeholder="Type a sentence, e.g. como liberar o pedido para faturar" disabled>
+  <select id="topk" aria-label="Number of results"><option>10</option><option selected>20</option><option>50</option></select>
+  <button id="sgo" disabled>Search</button>
+  <span id="semstat">Select embeddings.npy and embeddings.json together (created by cluster.py).</span>
+</div>
+<main>
+  <nav id="docs" aria-label="Documents"></nav>
+  <section id="view">
+    <div class="empty">
+      <h2>Open a chunks file to start</h2>
+      Choose the <code>chunks.jsonl</code> created by <code>chunker.py</code>. The file is read in your browser and is not uploaded anywhere.
+    </div>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let docs = new Map(), current = null, order = [];
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+$('#file').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $('#stat').textContent = 'Reading…';
+  const text = await f.text();
+  docs = new Map(); let n = 0, bad = 0;
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    let c; try { c = JSON.parse(line); } catch { bad++; continue; }
+    if (!docs.has(c.doc_id)) docs.set(c.doc_id, {id:c.doc_id, name:c.doc_name, chunks:[]});
+    const d = docs.get(c.doc_id);
+    c._search = (c.text + ' ' + (c.title||'') + ' ' + (c.topic_title||'') + ' ' + c.doc_name + ' ' + c.mentioned_programs + ' ' + c.main_programs + ' ' + c.pedido).toLowerCase();
+    d.chunks.push(c); n++;
+  }
+  for (const d of docs.values()) d.chunks.sort((a,b) => a.position - b.position);
+  order = [...docs.values()].sort((a,b) => a.name.localeCompare(b.name));
+  $('#q').disabled = $('#type').disabled = false;
+  $('#stat').textContent = `${docs.size} documents, ${n} chunks` + (bad ? `, ${bad} unreadable lines skipped` : '');
+  renderList();
+  if (order.length) open(order[0].id);
+});
+
+function matches(c, q, t) {
+  return (!t || c.record_type === t) && (!q || c._search.includes(q));
+}
+
+function renderList() {
+  const q = $('#q').value.trim().toLowerCase(), t = $('#type').value;
+  const nav = $('#docs'); nav.innerHTML = '';
+  let shown = 0;
+  for (const d of order) {
+    const hits = d.chunks.filter(c => matches(c, q, t)).length;
+    if ((q || t) && !hits) continue;
+    const b = document.createElement('button');
+    b.dataset.id = d.id;
+    b.setAttribute('aria-current', d.id === current);
+    b.innerHTML = `${esc(d.name)}<small>${d.chunks.length} chunks${(q||t) ? `, ${hits} matching` : ''}</small>`;
+    b.onclick = () => open(d.id);
+    nav.appendChild(b); shown++;
+  }
+  if (!shown) nav.innerHTML = '<p style="padding:14px;color:var(--muted)">No document matches. Clear the search or pick another record type.</p>';
+}
+
+function highlight(html, q) {
+  if (!q) return html;
+  const re = new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  return html.replace(re, m => `<mark>${m}</mark>`);
+}
+
+function open(id) {
+  current = id;
+  document.querySelectorAll('#docs button').forEach(b => b.setAttribute('aria-current', b.dataset.id == id));
+  const d = docs.get(id), q = $('#q').value.trim(), ql = q.toLowerCase(), t = $('#type').value;
+  const showEmbed = $('#embed').checked;
+  const v = $('#view');
+  const sizes = d.chunks.map(c => c.text.length);
+  let html = `<h2 class="doctitle">${esc(d.name)}</h2>
+    <div class="docmeta">${d.chunks.length} chunks in ${new Set(d.chunks.map(c=>c.record)).size} records and ${new Set(d.chunks.filter(c=>c.topic_number).map(c=>c.topic_id)).size} numbered topics. Chunk size ${Math.min(...sizes)} to ${Math.max(...sizes)} characters.</div>`;
+  let rec = null, inRec = false, topic = null;
+  for (const c of d.chunks) {
+    if (c.record !== rec) {
+      if (inRec) html += '</div>';
+      rec = c.record; inRec = true;
+      html += `<div class="record tp-${c.record_type}"><div class="rechead">Record ${c.record + 1}: ${c.record_type}${c.pedido ? ` <span>pedido ${c.pedido}</span>` : ''}</div>`;
+    }
+    if (c.topic_number && c.topic_id !== topic) {
+      html += `<div class="topic">Topic ${c.topic_number}: ${esc(c.topic_title)}${c.previous_topic_id ? ' <span>(follows the previous topic)</span>' : ''}</div>`;
+    }
+    topic = c.topic_id;
+    const hit = (ql || t) && matches(c, ql, t);
+    const main = new Set((c.main_programs || '').split(' ').filter(Boolean));
+    const progs = (c.mentioned_programs || '').split(' ').filter(Boolean)
+      .map(p => `<span class="chip${main.has(p) ? ' main' : ''}" title="Search this program">${p}</span>`).join('');
+    let body;
+    if (showEmbed) {
+      const [first, ...rest] = c.embed_text.split('\n');
+      let restTxt = esc(rest.join('\n'));
+      restTxt = restTxt.replace(/^\(\.\.\.\)[^\n]*/, m => `<span class="overlap">${m}</span>`);
+      body = `<span class="header-line">${esc(first)}</span>\n${restTxt}`;
+    } else body = esc(c.text);
+    html += `<article class="chunk${hit ? ' hit' : ''}" id="c-${c.chunk_id}">
+      ${c.title ? `<div class="ctitle">${highlight(esc(c.title), q)}<small>${esc(c.title_source||'')}</small></div>` : ''}
+      <div class="cmeta"><b>${c.chunk_id}</b>
+        <span class="${c.text.length < 400 ? 'small' : ''}">${c.text.length} chars</span>
+        ${progs}</div>
+      <pre>${highlight(body, q)}</pre></article>`;
+  }
+  if (inRec) html += '</div>';
+  v.innerHTML = html;
+  v.scrollTop = 0;
+  const first = v.querySelector('.chunk.hit');
+  if (first) first.scrollIntoView({block:'start'});
+}
+
+let timer;
+$('#q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { renderList(); if (current != null) open(current); }, 250); });
+$('#type').addEventListener('change', () => { renderList(); if (current != null) open(current); });
+$('#embed').addEventListener('change', () => current != null && open(current));
+// ------------------------------------------------------------------ semantic search
+const sem = {vectors: null, dims: 0, meta: null, extractor: null, loading: null};
+
+function parseNpy(buf) {
+  const bytes = new Uint8Array(buf);
+  if (String.fromCharCode(...bytes.slice(1, 6)) !== 'NUMPY') throw new Error('not a .npy file');
+  const major = bytes[6];
+  const hlen = major >= 2 ? new DataView(buf).getUint32(8, true) : new DataView(buf).getUint16(8, true);
+  const start = major >= 2 ? 12 : 10;
+  const header = new TextDecoder().decode(bytes.slice(start, start + hlen));
+  if (!/'descr':\s*'<f4'/.test(header)) throw new Error('expected float32 vectors, found ' + header);
+  if (/'fortran_order':\s*True/.test(header)) throw new Error('fortran order not supported');
+  const shape = header.match(/'shape':\s*\((\d+),\s*(\d+)\)/);
+  const offset = start + hlen;
+  const n = +shape[1], d = +shape[2];
+  return {data: new Float32Array(buf.slice(offset, offset + n * d * 4)), n, d};
+}
+
+$('#embfiles').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  const npy = files.find(f => f.name.endsWith('.npy')), js = files.find(f => f.name.endsWith('.json'));
+  if (!npy || !js) { $('#semstat').textContent = 'Select both files at once: embeddings.npy and embeddings.json.'; return; }
+  try {
+    $('#semstat').textContent = 'Reading embeddings…';
+    const meta = JSON.parse(await js.text());
+    const arr = parseNpy(await npy.arrayBuffer());
+    if (arr.n !== meta.chunk_ids.length) throw new Error(`${arr.n} vectors but ${meta.chunk_ids.length} chunk ids`);
+    if (meta.backend !== 'onnx') throw new Error(`embeddings made with '${meta.backend}', expected onnx`);
+    Object.assign(sem, {vectors: arr.data, dims: arr.d, meta, extractor: null, loading: null});
+    const known = new Set(); for (const d of docs.values()) for (const c of d.chunks) known.add(c.chunk_id);
+    const missing = docs.size ? meta.chunk_ids.filter(id => !known.has(id)).length : 0;
+    $('#semstat').textContent = `${arr.n} vectors (${arr.d} dims), model ${meta.model}` +
+      (missing ? ` · ${missing} ids not in the open chunks file: regenerate the embeddings` : '');
+    $('#sq').disabled = $('#sgo').disabled = false;
+  } catch (err) {
+    $('#semstat').textContent = 'Could not read the embeddings: ' + err.message;
+  }
+});
+
+// the saved .onnx file decides which variant the browser must load, so the
+// question is embedded exactly like the chunks were
+function dtypeFor(onnxFile) {
+  const f = (onnxFile || '').split('/').pop();
+  const map = {'model.onnx': 'fp32', 'model_fp16.onnx': 'fp16', 'model_quantized.onnx': 'q8',
+               'model_int8.onnx': 'int8', 'model_uint8.onnx': 'uint8', 'model_q4.onnx': 'q4',
+               'model_q4f16.onnx': 'q4f16', 'model_bnb4.onnx': 'bnb4'};
+  return map[f];
+}
+
+async function getExtractor() {
+  if (sem.extractor) return sem.extractor;
+  if (sem.loading) return sem.loading;
+  const m = sem.meta;
+  if (/^[A-Za-z]:|^\/|^\./.test(m.model)) throw new Error('the embeddings were made with a local model folder; the browser can only load models from Hugging Face');
+  const dtype = dtypeFor(m.onnx_file);
+  if (!dtype) throw new Error(`don't know how to load ${m.onnx_file} in the browser`);
+  sem.loading = (async () => {
+    $('#semstat').textContent = `Loading the model in the browser (${dtype}; the first time it downloads ${dtype === 'fp32' ? 'about 1 GB' : 'a few hundred MB'}, then it is cached)…`;
+    const {pipeline, env} = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3');
+    env.allowLocalModels = false;
+    let last = 0;
+    sem.extractor = await pipeline('feature-extraction', m.model, {
+      dtype,
+      progress_callback: p => {
+        if (p.status === 'progress' && p.total > 5e6 && Date.now() - last > 300) {
+          last = Date.now();
+          $('#semstat').textContent = `Downloading ${p.file}: ${Math.round(p.progress)}%`;
+        }
+      },
+    });
+    return sem.extractor;
+  })();
+  try { return await sem.loading; } catch (e) { sem.loading = null; throw e; }
+}
+
+async function semanticSearch() {
+  const q = $('#sq').value.trim();
+  if (!q || !sem.vectors) return;
+  if (!docs.size) { $('#semstat').textContent = 'Open the chunks file first.'; return; }
+  $('#sgo').disabled = true;
+  try {
+    const ex = await getExtractor();
+    $('#semstat').textContent = 'Embedding the sentence…';
+    const out = await ex((sem.meta.query_prefix || '') + q, {pooling: 'mean', normalize: true});
+    const v = out.data;
+    if (v.length !== sem.dims) throw new Error(`the model returned ${v.length} dims, the saved vectors have ${sem.dims}`);
+    const n = sem.meta.chunk_ids.length, d = sem.dims, scores = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      let s = 0; const o = i * d;
+      for (let j = 0; j < d; j++) s += sem.vectors[o + j] * v[j];
+      scores[i] = s;
+    }
+    const k = +$('#topk').value;
+    const idx = [...scores.keys()].sort((a, b) => scores[b] - scores[a]).slice(0, k);
+    const byId = new Map(); for (const doc of docs.values()) for (const c of doc.chunks) byId.set(c.chunk_id, c);
+    current = null;
+    document.querySelectorAll('#docs button').forEach(b => b.setAttribute('aria-current', false));
+    $('#view').innerHTML = `<h2 class="doctitle">Semantic results</h2>
+      <div class="docmeta">Chunks closest in meaning to “${esc(q)}”. Click one to open it in its document.</div>` +
+      idx.map(i => {
+        const id = sem.meta.chunk_ids[i], c = byId.get(id);
+        if (!c) return `<div class="result"><div class="rt"><span class="score">${scores[i].toFixed(3)}</span><b>${esc(id)}</b> (not in the open chunks file)</div></div>`;
+        return `<button class="result" data-doc="${c.doc_id}" data-chunk="${esc(id)}">
+          <div class="rt"><span class="score">${scores[i].toFixed(3)}</span><b>${esc(c.title || c.doc_name)}</b></div>
+          <div class="rmeta">${esc(c.doc_name)} · ${esc(id)} · ${esc(c.record_type)}${c.pedido ? ' · pedido ' + esc(c.pedido) : ''}</div>
+          <pre class="rtext">${esc(c.text)}</pre>
+          <div class="ropen">Open in document</div>
+        </button>`;
+      }).join('');
+    $('#view').scrollTop = 0;
+    $('#semstat').textContent = `Top ${k} of ${n} chunks.`;
+  } catch (err) {
+    $('#semstat').textContent = 'Semantic search failed: ' + err.message;
+  } finally {
+    $('#sgo').disabled = false;
+  }
+}
+$('#sgo').addEventListener('click', semanticSearch);
+$('#sq').addEventListener('keydown', e => { if (e.key === 'Enter') semanticSearch(); });
+
+$('#view').addEventListener('click', e => {
+  const r = e.target.closest('.result[data-doc]');
+  if (r && getSelection().toString()) return;          // selecting text, not opening
+  if (r) {
+    open(docs.has(+r.dataset.doc) ? +r.dataset.doc : r.dataset.doc);
+    const el = document.getElementById('c-' + r.dataset.chunk);
+    if (el) { el.classList.add('target'); el.scrollIntoView({block: 'start'}); }
+    return;
+  }
+});
+$('#view').addEventListener('click', e => {
+  if (e.target.classList.contains('chip')) { $('#q').value = e.target.textContent; renderList(); open(current); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+Method: onnx-community/multilingual-e5-base-ONNX | chunks: 9625 | clusters: 148 | noise: 3107 (32%)
+Agreement with program modules (NMI, 0-1): 0.457
+
+1. Nearest-neighbour links by relation (a healthy mix has many 'other_document' links;
+   almost only 'same_*' means chunks are mostly similar to their own document):
+   other_document   32504
+   same_document    11577
+   same_topic       3380
+   same_record      664
+
+2. Near-duplicate pairs (similarity >= 0.97): 1061
+   1.000      54-6 FPV_Desenvolvimentos a partir do patch 1 |   537-23 FPV_Desenvolvimentos a partir do patch 1
+   1.000     80-32 Estruturação de Produto - EPRO15.pdf     |    353-1 Características de Produto.pdf
+   1.000     80-74 Estruturação de Produto - EPRO15.pdf     |    101-5 Estruturação de Produto_Curtume.pdf
+   1.000     80-75 Estruturação de Produto - EPRO15.pdf     |    101-6 Estruturação de Produto_Curtume.pdf
+   1.000     80-86 Estruturação de Produto - EPRO15.pdf     |   170-95 Plano de Produção_Detalhes Gerais - MPSP
+   1.000    80-105 Estruturação de Produto - EPRO15.pdf     |    531-1 Categoria FPV – FVEN4.pdf
+   1.000    80-112 Estruturação de Produto - EPRO15.pdf     |    388-1 Estruturação do Produto – Resumido – EPR
+   1.000    80-118 Estruturação de Produto - EPRO15.pdf     |    388-5 Estruturação do Produto – Resumido – EPR
+   1.000    80-166 Estruturação de Produto - EPRO15.pdf     |    456-1 Sub-Coleções – EPRO94.pdf
+   1.000    80-183 Estruturação de Produto - EPRO15.pdf     |    353-5 Características de Produto.pdf
+   1.000    80-187 Estruturação de Produto - EPRO15.pdf     |    353-9 Características de Produto.pdf
+   1.000    80-189 Estruturação de Produto - EPRO15.pdf     |   353-11 Características de Produto.pdf
+   1.000    80-190 Estruturação de Produto - EPRO15.pdf     |   353-12 Características de Produto.pdf
+   1.000    80-192 Estruturação de Produto - EPRO15.pdf     |   567-14 Ivendre_IOS.pdf
+   1.000    80-196 Estruturação de Produto - EPRO15.pdf     |   201-24 Plano Abastecimento Materiais _ Remessa 
+   1.000    80-196 Estruturação de Produto - EPRO15.pdf     |    200-9 Plano Abastecimento Materiais - Requisiç
+   1.000    80-196 Estruturação de Produto - EPRO15.pdf     |    715-3 Remessa – TERC1.pdf
+   1.000    80-196 Estruturação de Produto - EPRO15.pdf     |   259-21 Operação - RECE2.pdf
+   1.000    80-198 Estruturação de Produto - EPRO15.pdf     |   200-11 Plano Abastecimento Materiais - Requisiç
+   1.000    80-198 Estruturação de Produto - EPRO15.pdf     |    715-5 Remessa – TERC1.pdf
+   1.000    80-198 Estruturação de Produto - EPRO15.pdf     |   201-26 Plano Abastecimento Materiais _ Remessa 
+   1.000    80-200 Estruturação de Produto - EPRO15.pdf     |  573-147 Pedido de Venda_Detalhes Gerais-PEDI1.pd
+   1.000    80-200 Estruturação de Produto - EPRO15.pdf     |   793-73 Situações Gerais no sistema_mensagens_bl
+   1.000     89-38 Apontamento de Produção_e_ Apontamento R |    89-53 Apontamento de Produção_e_ Apontamento R
+   1.000     89-47 Apontamento de Produção_e_ Apontamento R |   177-42 Custeio.pdf
+
+3. Numbered topics with more than one chunk: 36; spread over different clusters: 8
+   Compilado de Rotinas da Brisa.docx            topic 14: clusters [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 60, 2, 2, 2, 2, 2, 2, -1, 2, 2, 2, 2, 2, 2, 2]
+   Handoff_Tecnico_Fretes_Kunden_CONEMB_DOCCOB_L topic 4: clusters [8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+   NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf topic 5: clusters [14, 14, 13, 13, 13, 13]
+   NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf topic 6: clusters [14, 14, 14, 11, 11, 11, 11, 11, 11, 11, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, -1, -1, 14, 11]
+   NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf topic 7: clusters [14, 14, 14, 14, 14, 14, -1, 14, 14, -1, -1, 14, 11, 14, 14, 11, -1, 11, 11, -1, 3, -1]
+   NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf topic 8: clusters [14, 11, 11, 11, 11, 11, 11, -1, 11, 11, 11, -1, 11, 11, -1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 11, -1, -1, -1, -1, -1, 14, 14, 11, 11, 3, 14, 14, 51, 13, 13, 13]
+   parte_01.pdf                                  topic 10: clusters [23, -1, -1, 38, 38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 21, -1, 29]
+   Pedidos_Web_Parte_05.pdf                      topic 4: clusters [29, 29, 29, 36]
+
+4. Consecutive chunks in the same record with very LOW similarity (<0.25): 0
+   -> the record may contain two different subjects that should be separate
+   Consecutive chunks with very HIGH similarity (>0.92): 850
+   -> probably one subject cut in two; candidates for joining
+   1.00  753-5 -> 753-6  Ocorrências – CPAG3.pdf
+   0.99  753-4 -> 753-5  Ocorrências – CPAG3.pdf
+   0.99  88-20 -> 88-21  Handoff_Tecnico_Fretes_Kunden_CONEMB_DOCCOB_LIMPO.
+   0.99  296-4 -> 296-5  Liberação Faturamento Romaneio - FATU71.pdf
+   0.99  147-10 -> 147-11  PDS_fluxo de Recebimentos e Faturamentos.pdf
+   0.99  942-0 -> 942-1  THOMAS_EMANUEL_70pag_31.pdf
+   0.99  566-8 -> 566-9  iVendre.pdf
+   0.99  615-4 -> 615-5  Chão de Fábrica WEB.pdf
+   0.98  99-132 -> 99-133  NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf
+   0.98  622-0 -> 622-1  Gestão de Projetos.PDF
+   0.98  99-133 -> 99-134  NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf
+   0.98  948-1 -> 948-2  THOMAS_EMANUEL_70pag_25.pdf
+   0.98  499-50 -> 499-51  Painel de Embalagem_documentação de Pedidos.pdf
+   0.98  88-27 -> 88-28  Handoff_Tecnico_Fretes_Kunden_CONEMB_DOCCOB_LIMPO.
+   0.98  608-74 -> 608-75  B2B.pdf
+
+5. Clusters that group by FORM rather than subject:
+   cluster   0 (17 chunks): 100% from ONE document  [ção, ato, drawback, ções, concessório, exporta]
+   cluster   1 (15 chunks): 93% from ONE document  [nao, dito, deve, transcricao, reuniao, importacao]
+   cluster   2 (36 chunks): 97% from ONE document  [revisão, bônus, fracionamento, painel, sistema, treinamento]
+   cluster   3 (34 chunks): 100% from ONE document  [cbs, ibs, monofásica, grupo, rem, tributação]
+   cluster   7 (20 chunks): 100% from ONE document  [gera emissão, emissão rótulo, rótulo unidade, unidade armazenamento, armazenamento padrão, armazenamento pedidos]
+   cluster   9 (26 chunks): 100% from ONE document  [codex, clipboard, png, tecnica, appdata, guilhermenoschang]
+   cluster  11 (31 chunks): 97% from ONE document  [ibs, cbs, alíquota, cst, grupo, obrig rejeição]
+   cluster  13 (32 chunks): 100% from ONE document  [evento, autor, leiaute, moc, xml, xsd]
+   cluster  14 (26 chunks): 100% from ONE document  [tag, obrig rejeição, chave acesso, referenciada, referenciado, governamental]
+   cluster  28 (31 chunks): mostly e-mails  [medidora, está lendo, barras, pruebas, adoc etiquetas, lendo seguintes]
+   cluster  37 (15 chunks): mostly e-mails  [sobre fpv, perguntou sobre, pessoal perguntou, mail assunto, dizer estaria, assunto pessoal]
+   cluster  38 (23 chunks): 83% from ONE document  [moeda, cotação, cotações, dia, banco central, api]
+   cluster  40 (28 chunks): mostly e-mails  [carta correção, mail assunto, nfs, gerar carta, problema soubach, procura preciso]
+   cluster 121 (68 chunks): 85% from ONE document  [android, app, ivendre, preço, redução, flex]
+
+6. Strongest links between clusters (candidate module-to-module paths):
+     73  [41] situação, ocorrida, sobre  <->  [51] mail assunto, email, abaixo
+     46  [29] detalhamento teste, login, user  <->  [30] composto, estoque, patch documentação
+     36  [108] distribuição pedidos, vendas distribuição, entrega  <->  [120] ivendre, ios, proposta
+     29  [37] sobre fpv, perguntou sobre, pessoal perguntou  <->  [71] fpv, preço venda, cálculo
+     28  [106] reserva, estoque futuro, lote  <->  [108] distribuição pedidos, vendas distribuição, entrega
+     28  [82] compras, necessidades, cotação  <->  [108] distribuição pedidos, vendas distribuição, entrega
+     26  [120] ivendre, ios, proposta  <->  [121] android, app, ivendre
+     23  [51] mail assunto, email, abaixo  <->  [52] descritivos técnicos, doc, curtume
+     23  [35] ora, consolidar, bolsas operaciones  <->  [51] mail assunto, email, abaixo
+     23  [141] faturamento, rota, liberação pedidos  <->  [144] faturamento, liberação, estabelecimento
+     23  [144] faturamento, liberação, estabelecimento  <->  [145] desconto, faturamento, valor
+     22  [108] distribuição pedidos, vendas distribuição, entrega  <->  [111] importação, edi, arquivo
+     22  [11] ibs, cbs, alíquota  <->  [14] tag, obrig rejeição, chave acesso
+     22  [39] tablas, schneider, una  <->  [51] mail assunto, email, abaixo
+     22  [40] carta correção, mail assunto, nfs  <->  [51] mail assunto, email, abaixo
+     22  [78] plano produção, projeção, necessidades  <->  [82] compras, necessidades, cotação
+     21  [57] materiais, material, componente  <->  [58] engenharia, estruturação produto, desenvolvimento produto
+     20  [46] relatório, resumo produção, apontamento rótulos  <->  [47] importação, fiscais, notas
+     20  [82] compras, necessidades, cotação  <->  [83] pré, recebimento, pre
+     20  [60] armazenagem, local, lotes  <->  [61] painel, web, embalagem

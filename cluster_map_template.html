@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chunk clusters</title>
+<style>
+  :root{--ink:#1d2433;--muted:#5d6678;--line:#d6dbe4;--paper:#f7f8fa;--panel:#fff;--focus:#2f5fd0}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font:13px/1.45 system-ui,"Segoe UI",sans-serif;color:var(--ink);background:var(--paper);
+       display:grid;grid-template-columns:300px 1fr 380px;grid-template-rows:auto 1fr}
+  header{grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 14px;
+         background:var(--panel);border-bottom:1px solid var(--line)}
+  header h1{font-size:15px;margin:0}
+  header .muted{color:var(--muted)}
+  select,input,button{font:inherit;border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:#fff;color:inherit}
+  button{cursor:pointer}
+  :focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+  #list{overflow:auto;background:var(--panel);border-right:1px solid var(--line)}
+  #list button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:7px 12px;background:none}
+  #list button:hover{background:var(--paper)}
+  #list button[aria-pressed=true]{background:#e8eefb;box-shadow:inset 3px 0 0 var(--focus)}
+  .sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+  .kw{color:var(--muted);display:block}
+  .warn{color:#b3261e}
+  #wrap{position:relative;min-width:0;min-height:0}
+  canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+  #tip{position:absolute;pointer-events:none;background:#1d2433;color:#fff;padding:6px 8px;border-radius:6px;max-width:340px;display:none;font-size:12px}
+  #side{overflow:auto;background:var(--panel);border-left:1px solid var(--line);padding:12px 14px}
+  #side h2{font-size:14px;margin:0 0 6px}
+  #side pre{white-space:pre-wrap;font:12px/1.5 ui-monospace,Consolas,monospace;background:var(--paper);padding:8px;border-radius:6px;max-height:260px;overflow:auto}
+  table{border-collapse:collapse;width:100%}
+  td{border-top:1px solid var(--line);padding:4px 2px;vertical-align:top}
+  td button{border:0;padding:0;background:none;color:var(--focus);text-align:left}
+  .legend{display:flex;flex-wrap:wrap;gap:4px 10px}
+  @media (max-width:900px){body{grid-template-columns:1fr;grid-template-rows:auto 30vh 50vh auto}#list{border-right:0}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Chunk clusters</h1>
+  <span class="muted" id="info"></span>
+  <label>Colour by
+    <select id="colour"><option value="cluster">cluster</option><option value="module">module</option><option value="type">record type</option></select>
+  </label>
+  <input id="q" type="search" placeholder="Find text, title, document">
+  <label><input type="checkbox" id="noise" checked> show unclustered</label>
+  <button id="reset">Reset view</button>
+</header>
+<nav id="list" aria-label="Clusters"></nav>
+<div id="wrap"><canvas id="cv"></canvas><div id="tip"></div></div>
+<aside id="side"><h2>How to read this</h2>
+  <p>Each dot is a chunk. Dots close together have similar content. Colours are the clusters found automatically.</p>
+  <p>Click a cluster on the left to highlight it, or click a dot to read the chunk and see its most similar chunks (lines on the map).</p>
+  <p>Scroll to zoom, drag to move.</p>
+  <p>Signs of a problem: a cluster made of one document only, a cluster of e-mails, or a dot whose nearest chunks are all from its own document.</p>
+</aside>
+<script>
+const DATA = /*__DATA__*/null;
+const P = DATA.points; // [x,y,cluster,id,title,doc,type,module,text,neighbours]
+const S = DATA.clusters;
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), tip = document.getElementById('tip');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pal = i => `hsl(${(i * 137.508) % 360} 62% ${i % 2 ? 42 : 55}%)`;
+const cats = {module: [...new Set(P.map(p => p[7] || '—'))].sort(), type: [...new Set(P.map(p => p[6]))].sort()};
+let sel = null, focus = null, query = '', view = {s:1, x:0, y:0};
+document.getElementById('info').textContent =
+  `${P.length} chunks, ${S.length} clusters, ${P.filter(p => p[2] < 0).length} unclustered, vectors: ${DATA.method}`;
+
+// bounds
+const xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+const B = {x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys)};
+function size() { const r = cv.getBoundingClientRect(); cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio; draw(); }
+function toScreen(p) {
+  const w = cv.width, h = cv.height, pad = 30 * devicePixelRatio;
+  const sc = Math.min((w - 2*pad) / (B.x1 - B.x0), (h - 2*pad) / (B.y1 - B.y0));
+  return [(pad + (p[0] - B.x0) * sc) * view.s + view.x, (pad + (B.y1 - p[1]) * sc) * view.s + view.y];
+}
+function colour(p) {
+  const mode = document.getElementById('colour').value;
+  if (mode === 'cluster') return p[2] < 0 ? '#b8bec9' : pal(p[2]);
+  const list = cats[mode], v = mode === 'module' ? (p[7] || '—') : p[6];
+  return v === '—' ? '#b8bec9' : pal(list.indexOf(v) * 3 + 1);
+}
+function visible(p) { return (p[2] >= 0 || document.getElementById('noise').checked); }
+function matches(p) { return !query || (p[4] + ' ' + p[5] + ' ' + p[8]).toLowerCase().includes(query); }
+function draw() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  const r = 2.2 * devicePixelRatio;
+  const dim = sel !== null || query;
+  for (const p of P) {
+    if (!visible(p)) continue;
+    const on = (sel === null || p[2] === sel) && matches(p);
+    const [x, y] = toScreen(p);
+    ctx.globalAlpha = dim && !on ? 0.08 : 0.8;
+    ctx.fillStyle = colour(p);
+    ctx.beginPath(); ctx.arc(x, y, on && dim ? r * 1.4 : r, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (focus !== null) {
+    const f = P[focus], [fx, fy] = toScreen(f);
+    ctx.lineWidth = 1.5 * devicePixelRatio;
+    for (const [j] of f[9]) {
+      const [x, y] = toScreen(P[j]);
+      ctx.strokeStyle = '#1d2433'; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(x, y); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r * 2, 0, 7); ctx.fill(); ctx.stroke();
+    }
+    ctx.fillStyle = '#1d2433'; ctx.beginPath(); ctx.arc(fx, fy, r * 2.6, 0, 7); ctx.fill();
+  }
+  renderLegend();
+}
+function nearest(mx, my) {
+  let best = null, bd = (8 * devicePixelRatio) ** 2;
+  for (let i = 0; i < P.length; i++) {
+    if (!visible(P[i])) continue;
+    const [x, y] = toScreen(P[i]), d = (x - mx) ** 2 + (y - my) ** 2;
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+// list of clusters
+function renderList() {
+  const nav = document.getElementById('list');
+  const sorted = [...S].sort((a, b) => b.size - a.size);
+  nav.innerHTML = `<button data-c="all" aria-pressed="${sel === null}"><b>All clusters</b></button>` + sorted.map(c => {
+    const flags = [];
+    if (c.largest_doc_share >= 0.8) flags.push('one document');
+    if (/^email:/.test(c.record_types) && +c.record_types.split(' ')[0].split(':')[1] / c.size >= 0.8) flags.push('e-mails');
+    return `<button data-c="${c.cluster}" aria-pressed="${sel === c.cluster}">
+      <span class="sw" style="background:${pal(c.cluster)}"></span><b>#${c.cluster}</b> · ${c.size} chunks
+      ${c.top_module ? ` · ${esc(c.top_module)} ${c.module_purity !== '' ? Math.round(c.module_purity * 100) + '%' : ''}` : ''}
+      ${flags.length ? `<span class="warn"> · ${flags.join(', ')}</span>` : ''}
+      <span class="kw">${esc(c.keywords)}</span></button>`;
+  }).join('');
+}
+document.getElementById('list').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  sel = b.dataset.c === 'all' ? null : +b.dataset.c;
+  renderList(); draw(); if (sel !== null) showCluster(sel);
+});
+function renderLegend() {
+  const mode = document.getElementById('colour').value;
+  if (mode === 'cluster' || focus !== null || sel !== null) return;
+  document.getElementById('side').innerHTML = `<h2>Colours: ${mode === 'module' ? 'module of the main program' : 'record type'}</h2>
+    <div class="legend">${cats[mode].map(v => `<span><span class="sw" style="background:${v === '—' ? '#b8bec9' : pal(cats[mode].indexOf(v) * 3 + 1)}"></span>${esc(v)}</span>`).join('')}</div>
+    <p class="kw">If the clusters follow the modules, the "cluster" and "module" colourings look alike.</p>`;
+}
+function showCluster(c) {
+  const s = S.find(x => x.cluster === c);
+  const links = DATA.clusterLinks.filter(l => l[0] === c || l[1] === c).slice(0, 10);
+  const members = P.map((p, i) => [p, i]).filter(([p]) => p[2] === c);
+  document.getElementById('side').innerHTML = `<h2>Cluster #${c}</h2>
+    <p><b>Keywords:</b> ${esc(s.keywords)}<br><b>Modules:</b> ${esc(s.modules || '—')}<br>
+    <b>Record types:</b> ${esc(s.record_types)}<br><b>Documents:</b> ${s.documents} (largest has ${Math.round(s.largest_doc_share * 100)}%)<br>
+    <b>Cohesion:</b> ${s.cohesion}</p>
+    <h2>Most connected clusters</h2>
+    <table>${links.map(l => { const o = l[0] === c ? l[1] : l[0]; const os = S.find(x => x.cluster === o);
+      return `<tr><td><button data-go="${o}">#${o}</button></td><td>${esc(os.keywords)}</td><td>${l[2]}</td></tr>`; }).join('') || '<tr><td>No links</td></tr>'}</table>
+    <h2 style="margin-top:12px">Chunks (${members.length})</h2>
+    <table>${members.slice(0, 200).map(([p, i]) => `<tr><td><button data-pt="${i}">${esc(p[3])}</button></td><td>${esc(p[4] || p[5])}</td></tr>`).join('')}</table>`;
+}
+function showPoint(i) {
+  const p = P[i];
+  document.getElementById('side').innerHTML = `<h2>${esc(p[3])} · cluster ${p[2] < 0 ? 'none' : '#' + p[2]}</h2>
+    <p><b>${esc(p[4])}</b><br>${esc(p[5])}<br>${esc(p[6])}${p[7] ? ' · ' + esc(p[7]) : ''}</p>
+    <pre>${esc(p[8])}</pre>
+    <h2>Most similar chunks</h2>
+    <table>${p[9].map(([j, s, rel]) => `<tr><td><button data-pt="${j}">${esc(P[j][3])}</button></td>
+      <td>${esc(P[j][4] || P[j][5])}<br><span class="kw">${rel.replace('_', ' ')} · cluster ${P[j][2] < 0 ? 'none' : '#' + P[j][2]}</span></td><td>${s}</td></tr>`).join('') || '<tr><td>No chunk above the similarity threshold.</td></tr>'}</table>
+    <p><button id="back">Back</button></p>`;
+}
+document.getElementById('side').addEventListener('click', e => {
+  const t = e.target;
+  if (t.dataset.pt) { focus = +t.dataset.pt; showPoint(focus); draw(); }
+  else if (t.dataset.go) { sel = +t.dataset.go; focus = null; renderList(); showCluster(sel); draw(); }
+  else if (t.id === 'back') { focus = null; draw(); sel !== null ? showCluster(sel) : location.reload(); }
+});
+// interaction
+let drag = null, moved = false;
+cv.addEventListener('mousedown', e => { drag = [e.clientX, e.clientY]; moved = false; });
+window.addEventListener('mouseup', e => {
+  if (drag && !moved) {
+    const r = cv.getBoundingClientRect();
+    const i = nearest((e.clientX - r.left) * devicePixelRatio, (e.clientY - r.top) * devicePixelRatio);
+    focus = i; if (i !== null) showPoint(i); draw();
+  }
+  drag = null;
+});
+cv.addEventListener('mousemove', e => {
+  const r = cv.getBoundingClientRect();
+  if (drag) {
+    const dx = e.clientX - drag[0], dy = e.clientY - drag[1];
+    if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+    view.x += dx * devicePixelRatio; view.y += dy * devicePixelRatio; drag = [e.clientX, e.clientY]; draw(); return;
+  }
+  const i = nearest((e.clientX - r.left) * devicePixelRatio, (e.clientY - r.top) * devicePixelRatio);
+  if (i === null) { tip.style.display = 'none'; return; }
+  const p = P[i];
+  tip.innerHTML = `<b>${esc(p[4] || p[3])}</b><br>${esc(p[5])}<br>cluster ${p[2] < 0 ? 'none' : '#' + p[2]}`;
+  tip.style.display = 'block';
+  tip.style.left = Math.min(e.clientX - r.left + 12, r.width - 350) + 'px';
+  tip.style.top = (e.clientY - r.top + 12) + 'px';
+});
+cv.addEventListener('mouseleave', () => tip.style.display = 'none');
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect(), mx = (e.clientX - r.left) * devicePixelRatio, my = (e.clientY - r.top) * devicePixelRatio;
+  const k = e.deltaY < 0 ? 1.2 : 1 / 1.2;
+  view.x = mx - (mx - view.x) * k; view.y = my - (my - view.y) * k; view.s *= k; draw();
+}, {passive: false});
+document.getElementById('reset').onclick = () => { view = {s:1, x:0, y:0}; draw(); };
+document.getElementById('colour').onchange = () => { if (document.getElementById('colour').value !== 'cluster' && focus === null && sel === null) renderLegend(); draw(); };
+document.getElementById('noise').onchange = draw;
+let tm; document.getElementById('q').oninput = e => { clearTimeout(tm); tm = setTimeout(() => { query = e.target.value.trim().toLowerCase(); draw(); }, 200); };
+window.addEventListener('resize', size);
+renderList(); size();
+</script>
+</body>
+</html>

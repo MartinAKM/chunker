@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program associations</title>
+<style>
+  :root{--ink:#1d2433;--muted:#5d6678;--line:#d6dbe4;--paper:#f7f8fa;--panel:#fff;--focus:#2f5fd0;--cross:#8a5a00}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 system-ui,"Segoe UI",sans-serif;color:var(--ink);background:var(--paper)}
+  header{padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+  h1{font-size:17px;margin:0 0 4px}
+  .muted{color:var(--muted)}
+  main{max-width:1100px;margin:0 auto;padding:18px 20px 60px}
+  .controls{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:end;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+  input,select,button{font:inherit;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:#fff}
+  #items{min-width:320px}
+  button{cursor:pointer}
+  :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+  .chip{font:12px ui-monospace,Consolas,monospace;border:1px solid var(--line);border-radius:4px;padding:2px 7px;background:#fff;cursor:pointer}
+  .chip.cross{border-color:var(--cross);color:var(--cross)}
+  table{border-collapse:collapse;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  th,td{text-align:left;padding:7px 10px;border-top:1px solid var(--line);vertical-align:top}
+  th{background:var(--paper);font-weight:600;font-size:12px;color:var(--muted);border-top:0}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .code{font-family:ui-monospace,Consolas,monospace;font-weight:600}
+  .bar{height:6px;background:var(--line);border-radius:3px;min-width:60px}
+  .bar i{display:block;height:100%;background:var(--focus);border-radius:3px}
+  .tag{font-size:11px;color:var(--cross);border:1px solid var(--cross);border-radius:3px;padding:0 4px;margin-left:4px}
+  details{margin-top:4px}
+  summary{cursor:pointer;color:var(--focus);font-size:12px}
+  .ev{border-left:3px solid var(--line);padding:4px 10px;margin:6px 0}
+  .ev pre{white-space:pre-wrap;font:12px/1.5 ui-monospace,Consolas,monospace;margin:4px 0 0;max-height:220px;overflow:auto}
+  mark{background:#ffe38a}
+  h2{font-size:15px;margin:22px 0 8px}
+  .empty{padding:20px;color:var(--muted)}
+  .wrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>Program associations</h1>
+  <div class="muted" id="info"></div>
+</header>
+<main>
+  <div class="controls">
+    <label>Programs or messages changed (separate with spaces or commas)
+      <input id="items" list="all" placeholder="e.g. PEDI4 FATU61" autocomplete="off">
+      <datalist id="all"></datalist>
+    </label>
+    <label>Min. documents <input id="mindocs" type="number" min="1" value="2" style="width:80px"></label>
+    <label>Min. lift <input id="minlift" type="number" min="1" step="0.5" value="2" style="width:80px"></label>
+    <label>Show <select id="scope"><option value="all">all recommendations</option><option value="cross">other modules only</option></select></label>
+    <button id="go">Recommend</button>
+  </div>
+  <div class="chips" id="picked"></div>
+  <section id="result"></section>
+</main>
+<script>
+const D = /*__DATA__*/null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const byFrom = {};
+for (const r of D.rules) (byFrom[r[0]] ||= []).push(r);
+const name = c => D.names[c] ? `${esc(D.names[c])}` : '';
+$('#info').textContent = `Baskets = ${D.unit}s (${D.baskets}). ${D.rules.length} rules. ` +
+  `Recommendations combine the rules of every item you enter: an item suggested by several of them ranks higher.`;
+$('#all').innerHTML = Object.keys(byFrom).sort().map(i => `<option value="${i}">${D.names[i] || ''}</option>`).join('');
+
+function parse() { return [...new Set($('#items').value.toUpperCase().split(/[\s,;]+/).filter(Boolean))]; }
+
+function recommend() {
+  const inputs = parse(), minDocs = +$('#mindocs').value || 1, minLift = +$('#minlift').value || 1;
+  const cross = $('#scope').value === 'cross';
+  $('#picked').innerHTML = inputs.map(i => `<span class="chip" title="${esc(D.names[i] || '')}">${esc(i)}${D.items[i] ? ` · ${D.items[i][0]} baskets` : ' · not found'}</span>`).join('');
+  if (!inputs.length) return overview();
+  const cand = {};
+  for (const x of inputs) for (const r of byFrom[x] || []) {
+    const [, y, tog, docs, conf, lift, isCross, ev] = r;
+    if (inputs.includes(y) || docs < minDocs || lift < minLift || (cross && !isCross)) continue;
+    const c = cand[y] ||= {y, miss: 1, via: []};
+    c.miss *= (1 - conf);                       // noisy-OR of the confidences
+    c.via.push({x, tog, docs, conf, lift, isCross, ev});
+  }
+  const list = Object.values(cand).map(c => ({...c, score: 1 - c.miss})).sort((a, b) => b.score - a.score);
+  const unknown = inputs.filter(i => !byFrom[i]);
+  let html = unknown.length ? `<p class="muted">No rules for: ${unknown.map(esc).join(', ')} (too rare in the documents, or not a known code).</p>` : '';
+  if (!list.length) { $('#result').innerHTML = html + '<div class="empty">No recommendation with these filters.</div>'; return; }
+  html += `<h2>${list.length} items to check</h2><div class="wrap"><table><thead><tr>
+    <th>Item</th><th>Strength</th><th>Because of</th><th class="num">Together</th><th class="num">Docs</th><th class="num">Conf.</th><th class="num">Lift</th></tr></thead><tbody>`;
+  for (const c of list) {
+    c.via.sort((a, b) => b.conf - a.conf);
+    const v = c.via[0];
+    const isCross = c.via.some(z => z.isCross);
+    html += `<tr><td><span class="code">${esc(c.y)}</span>${isCross ? '<span class="tag">other module</span>' : ''}<br><span class="muted">${name(c.y)}</span></td>
+      <td><div class="bar" title="${Math.round(c.score*100)}%"><i style="width:${Math.round(c.score*100)}%"></i></div>${Math.round(c.score*100)}%</td>
+      <td>${c.via.map(z => `<span class="code">${esc(z.x)}</span> <span class="muted">(${Math.round(z.conf*100)}%)</span>`).join('<br>')}
+        <details><summary>show evidence</summary>${c.via.map(z => z.ev.map(id => evidence(id, [z.x, c.y])).join('')).join('')}</details></td>
+      <td class="num">${v.tog}</td><td class="num">${v.docs}</td><td class="num">${v.conf.toFixed(2)}</td><td class="num">${v.lift.toFixed(1)}</td></tr>`;
+  }
+  $('#result').innerHTML = html + '</tbody></table></div>';
+}
+
+function evidence(id, codes) {
+  const c = D.chunks[id]; if (!c) return '';
+  let text = esc(c[2]);
+  for (const k of codes) text = text.replaceAll(k, `<mark>${k}</mark>`);
+  return `<div class="ev"><b>${esc(id)}</b> · ${esc(c[0])}<br><span class="muted">${esc(c[1])}</span><pre>${text}</pre></div>`;
+}
+
+function overview() {
+  const minDocs = +$('#mindocs').value || 1, minLift = +$('#minlift').value || 1, cross = $('#scope').value === 'cross';
+  const top = D.rules.filter(r => r[3] >= minDocs && r[5] >= minLift && (!cross || r[6])).slice(0, 60);
+  $('#result').innerHTML = `<h2>Strongest rules</h2><p class="muted">Type a program above to see what to check when it changes. Click a code to use it.</p>
+    <div class="wrap"><table><thead><tr><th>If this appears</th><th>then also</th><th class="num">Together</th><th class="num">Docs</th><th class="num">Conf.</th><th class="num">Lift</th></tr></thead><tbody>
+    ${top.map(r => `<tr><td><button class="chip" data-add="${r[0]}">${r[0]}</button> <span class="muted">${name(r[0])}</span></td>
+      <td><button class="chip${r[6] ? ' cross' : ''}" data-add="${r[1]}">${r[1]}</button> <span class="muted">${name(r[1])}</span></td>
+      <td class="num">${r[2]}</td><td class="num">${r[3]}</td><td class="num">${r[4].toFixed(2)}</td><td class="num">${r[5].toFixed(1)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+document.addEventListener('click', e => {
+  const a = e.target.dataset && e.target.dataset.add;
+  if (a) { $('#items').value = a; recommend(); window.scrollTo(0, 0); }
+});
+$('#go').onclick = recommend;
+$('#items').addEventListener('keydown', e => { if (e.key === 'Enter') recommend(); });
+for (const id of ['#mindocs', '#minlift', '#scope']) $(id).addEventListener('change', recommend);
+overview();
+</script>
+</body>
+</html>
