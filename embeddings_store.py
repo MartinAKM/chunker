@@ -62,9 +62,12 @@ def embed_query(emb, text):
         raise ValueError(f"these embeddings were made with backend '{m.get('backend')}'; "
                          f"run cluster.py again to rebuild them with ONNX")
     from embedder import Embedder
-    key = (m["model"], m["onnx_file"])
+    key = (m["model"], m["onnx_file"], m.get("max_length"))
     if key not in _models:
-        _models[key] = Embedder(m["model"], m["onnx_file"])
+        e = Embedder(m["model"], m["onnx_file"], max_length=m.get("max_length"))
+        if m.get("pooling") and e.pooling != m["pooling"]:
+            raise ValueError(f"pooling mismatch: vectors use {m['pooling']}, model loaded with {e.pooling}")
+        _models[key] = e
     return _models[key].encode([text], kind="query")[0]
 
 def top(emb, vector, k=5, exclude=None):

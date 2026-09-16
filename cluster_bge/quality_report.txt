@@ -1,0 +1,114 @@
+Method: raludi/bge-m3-onnx-int8 | chunks: 9625 | clusters: 160 | noise: 2737 (28%)
+Agreement with program modules (NMI, 0-1): 0.507
+
+1. Nearest-neighbour links by relation (a healthy mix has many 'other_document' links;
+   almost only 'same_*' means chunks are mostly similar to their own document):
+   other_document   30314
+   same_document    13986
+   same_topic       3061
+   same_record      708
+
+2. Near-duplicate pairs (similarity >= 0.97): 748
+   1.000     80-32 Estruturação de Produto - EPRO15.pdf     |    353-1 Características de Produto.pdf
+   1.000     80-68 Estruturação de Produto - EPRO15.pdf     |   454-26 Rotulos_Emissão_Caixas_Corrugadas - FATU
+   1.000     80-75 Estruturação de Produto - EPRO15.pdf     |    101-6 Estruturação de Produto_Curtume.pdf
+   1.000    80-105 Estruturação de Produto - EPRO15.pdf     |   534-99 FPV.pdf
+   1.000    80-112 Estruturação de Produto - EPRO15.pdf     |    388-1 Estruturação do Produto – Resumido – EPR
+   1.000    80-184 Estruturação de Produto - EPRO15.pdf     |    353-6 Características de Produto.pdf
+   1.000    80-197 Estruturação de Produto - EPRO15.pdf     |   201-25 Plano Abastecimento Materiais _ Remessa 
+   1.000    80-197 Estruturação de Produto - EPRO15.pdf     |   200-10 Plano Abastecimento Materiais - Requisiç
+   1.000    80-197 Estruturação de Produto - EPRO15.pdf     |   259-22 Operação - RECE2.pdf
+   1.000    80-198 Estruturação de Produto - EPRO15.pdf     |   200-11 Plano Abastecimento Materiais - Requisiç
+   1.000     89-49 Apontamento de Produção_e_ Apontamento R |   177-44 Custeio.pdf
+   1.000     110-8 Manutenção de Apontamentos MultiTarefa – |   138-42 Apontamento MultiTarefa – CFAB90.pdf
+   1.000     120-8 Relatório de Rendimento - CFAB78.pdf     |   121-43 Relatório de Rendimento com Custo - CFAB
+   1.000    136-10 Unidade Secundaria, rotina de controle d |   235-20 Situações do Estoque_Valorizações_Custo_
+   1.000    147-10 PDS_fluxo de Recebimentos e Faturamentos |    296-4 Liberação Faturamento Romaneio - FATU71.
+   1.000    151-40 Plano Abastecimento Materiais e Controle |   272-10 Devolução de Compras - FATU9.pdf
+   1.000     152-3 Ajuste Divergência Estoque X Inventariad |    808-1 Coletor_Operação 38 para CONTROLE ROTATI
+   1.000     152-9 Ajuste Divergência Estoque X Inventariad |   193-11 Lançamento Produtos Inventário - CRI - E
+   1.000     156-3 Apontamento de Requisição – ESTO131.pdf  |   911-16 Apontamento de Requisição - ESTO79_NÃO U
+   1.000    157-14 Baixa de Estoque de NF Emitida sem Estoq |   258-33 Liberação Pedidos Faturamento Rotulos - 
+   1.000    170-28 Plano de Produção_Detalhes Gerais - MPSP |    454-2 Rotulos_Emissão_Caixas_Corrugadas - FATU
+   1.000    170-86 Plano de Produção_Detalhes Gerais - MPSP |    417-1 Propriedade Pedidos_Lote Plano de Produç
+   1.000   170-133 Plano de Produção_Detalhes Gerais - MPSP |   383-81 Estruturação de Produto - EPRO15 com rot
+   1.000    174-20 Controle Rotativo do Inventario_CRI.pdf  |    808-1 Coletor_Operação 38 para CONTROLE ROTATI
+   1.000    177-67 Custeio.pdf                              |    219-3 Relatório Conciliação Estoque X Contábil
+
+3. Numbered topics with more than one chunk: 36; spread over different clusters: 14
+   Compilado de Rotinas da Brisa.docx            topic 14: clusters [64, 64, 7, 7, 7, 18, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, -1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7]
+   Handoff_Tecnico_Fretes_Kunden_CONEMB_DOCCOB_L topic 4: clusters [8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+   NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf topic 6: clusters [11, 11, 11, 12, 12, 12, 12, 12, -1, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, -1, 11, -1]
+   NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf topic 7: clusters [11, 11, 11, 11, -1, 11, 11, 11, 11, -1, 11, 11, 13, -1, 11, 12, 12, 12, 12, 13, 13, -1]
+   NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf topic 8: clusters [12, 12, 12, 12, 12, 12, 12, -1, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, -1, 12, 13, -1, -1, 13, -1, 11, 11, -1, -1, -1, 11, 11, 10, 11, 10, 10]
+   NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf topic 9: clusters [10, 10, 13, 10, 10, 11, 11, 10, 10, 11, 10, -1, 10, 11, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+   Painel de Armazenagem.pdf                     topic 2: clusters [46, 45, 45, 45, 46, 45, 46]
+   THOMAS_EMANUEL_70pag_01.pdf                   topic 5: clusters [22, 139, -1, 139, 139]
+   Pedidos_ERP_Parte_11.pdf                      topic 4: clusters [22, 22, -1, -1, 133]
+   parte_01.pdf                                  topic 10: clusters [25, 25, 2, 2, 2, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, -1, -1, -1, -1]
+   parte_02.pdf                                  topic 4: clusters [-1, -1, -1, -1, -1, -1, 45, 126, 126, 126, 126, 126, 74]
+   parte_02.pdf                                  topic 8: clusters [148, 148, 148, 126]
+   Pedidos_Web_Parte_01.pdf                      topic 4: clusters [22, 22, 22, 22, 139, 22]
+   Pedidos_Web_Parte_05.pdf                      topic 4: clusters [22, 22, 22, 20]
+
+4. Consecutive chunks in the same record with very LOW similarity (<0.25): 0
+   -> the record may contain two different subjects that should be separate
+   Consecutive chunks with very HIGH similarity (>0.92): 14
+   -> probably one subject cut in two; candidates for joining
+   0.97  566-8 -> 566-9  iVendre.pdf
+   0.96  942-0 -> 942-1  THOMAS_EMANUEL_70pag_31.pdf
+   0.95  99-96 -> 99-97  NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf
+   0.94  930-7 -> 930-8  THOMAS_EMANUEL_70pag_38.pdf
+   0.94  440-2 -> 440-3  Relatório Plano Mestre de Produção por Plano e Pro
+   0.94  440-3 -> 440-4  Relatório Plano Mestre de Produção por Plano e Pro
+   0.94  951-4 -> 951-5  THOMAS_EMANUEL_70pag_22.pdf
+   0.94  99-137 -> 99-138  NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf
+   0.93  999-1 -> 999-2  Pedidos_Web_Parte_04.pdf
+   0.93  296-4 -> 296-5  Liberação Faturamento Romaneio - FATU71.pdf
+   0.93  147-10 -> 147-11  PDS_fluxo de Recebimentos e Faturamentos.pdf
+   0.93  99-133 -> 99-134  NT_2025.002_v1.50_RTC_NF-e_IBS_CBS_IS (2).pdf
+   0.92  928-4 -> 928-5  THOMAS_EMANUEL_70pag_40.pdf
+   0.92  753-4 -> 753-5  Ocorrências – CPAG3.pdf
+
+5. Clusters that group by FORM rather than subject:
+   cluster   0 (20 chunks): 100% from ONE document  [gera emissão, emissão rótulo, rótulo unidade, unidade armazenamento, armazenamento pedidos, armazenamento padrão]
+   cluster   4 (18 chunks): 94% from ONE document  [power, mcm, visões, mobile, visão, filtros]
+   cluster   7 (34 chunks): 100% from ONE document  [revisão, bônus, painel, fracionamento, sistema, treinamento]
+   cluster   9 (25 chunks): 100% from ONE document  [codex clipboard, png, tecnica, guilhermenoschang appdata, print codex, appdata local]
+   cluster  10 (31 chunks): 97% from ONE document  [evento, leiaute, autor, moc, xml, xsd]
+   cluster  11 (28 chunks): 100% from ONE document  [tag, obrig rejeição, chave acesso, referenciada, referenciado, refdfeant]
+   cluster  12 (28 chunks): 100% from ONE document  [alíquota, cbs, ibs, cst, redução, grupo]
+   cluster  13 (41 chunks): 100% from ONE document  [ibs, cbs, monofásica, grupo, tributação, rem]
+   cluster  18 (19 chunks): 89% from ONE document  [ção, ato, drawback, ções, concessório, exporta]
+   cluster  37 (18 chunks): mostly e-mails  [está lendo, etiquetas medidora, medidora está, lendo seguintes, adoc etiquetas, assunto pruebas]
+   cluster  47 (25 chunks): 96% from ONE document  [análise, representante, vendas, meta, caracteristicas, agrupamentos]
+   cluster  65 (27 chunks): 100% from ONE document  [painel embalagem, embalagem web, web painel, primevo painel, rotina web, web alteração]
+   cluster  68 (17 chunks): mostly e-mails  [relatório faturamento, assunto relatório, estornos, dia, ademir, ocorreram]
+   cluster 109 (16 chunks): 88% from ONE document  [planejamento vendas, cota, vendas planejamento, ventas, efetiva, periodicidade]
+   cluster 120 (35 chunks): 80% from ONE document  [reposição, ponto, estoque segurança, consumo médio, médio diário, necessidade]
+   cluster 131 (86 chunks): 84% from ONE document  [android, app, ivendre, preço, aprovação, frigolaste]
+   cluster 137 (26 chunks): 88% from ONE document  [flex, saldo, representantes controle, pedidos representantes, vendas, preço]
+   cluster 146 (45 chunks): 91% from ONE document  [proposta, ivendre, representante, licenciado, entrega, transportadoras]
+   cluster 159 (34 chunks): 91% from ONE document  [aline, sefaz, monitor, schneider, marcio, kunden]
+
+6. Strongest links between clusters (candidate module-to-module paths):
+     38  [19] fpv, preço venda, cálculo  <->  [41] custeio, custo, recálculo
+     38  [12] alíquota, cbs, ibs  <->  [13] ibs, cbs, monofásica
+     29  [22] detalhamento teste, login, user  <->  [126] faturamento, liberação, pedidos
+     29  [113] risco, crédito, analise  <->  [126] faturamento, liberação, pedidos
+     27  [151] fabricação geração, plano mestre, mestre produção  <->  [153] plano mestre, mestre produção, relatório plano
+     27  [90] material, materiais, componente  <->  [97] engenharia, desenvolvimento produto, estruturação produto
+     26  [132] eficiência, minutos, turno  <->  [140] recurso, planejamento, meta
+     25  [98] rota, pedidos faturamento, liberação pedidos  <->  [126] faturamento, liberação, pedidos
+     22  [122] emissão ordem, chão, ordem fabricação  <->  [123] cartão, componente, emissão
+     22  [156] entrada, nota, fiscal  <->  [157] importação notas, fiscais importação, entrada xml
+     21  [43] cep, inspeção, lançamento  <->  [44] devolução, devoluções, cep
+     21  [102] centro custo, requisição, contábil  <->  [108] abastecimento, requisição, materiais
+     21  [108] abastecimento, requisição, materiais  <->  [110] necessidades, compras, mrp
+     20  [77] cancelamento saldo, saldo embarque, reserva  <->  [89] estoque futuro, localização, produção estoque
+     19  [76] encerramento, finalização, proceso  <->  [133] semi, ofs, acabado
+     19  [108] abastecimento, requisição, materiais  <->  [151] fabricação geração, plano mestre, mestre produção
+     19  [158] monitor, fiscais, notas  <->  [159] aline, sefaz, monitor
+     19  [140] recurso, planejamento, meta  <->  [152] mestre produção, plano mestre, forecast
+     18  [45] armazenagem, local, rótulos  <->  [46] armazenagem, lotes, local
+     18  [62] painel, web, expedição  <->  [65] painel embalagem, embalagem web, web painel

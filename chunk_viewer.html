@@ -84,11 +84,10 @@
 </header>
 <div id="sem">
   <b>Semantic search</b>
-  <label class="file">Load embeddings<input id="embfiles" type="file" accept=".npy,.json" multiple></label>
   <input id="sq" type="search" placeholder="Type a sentence, e.g. como liberar o pedido para faturar" disabled>
   <select id="topk" aria-label="Number of results"><option>10</option><option selected>20</option><option>50</option></select>
   <button id="sgo" disabled>Search</button>
-  <span id="semstat">Select embeddings.npy and embeddings.json together (created by cluster.py).</span>
+  <span id="semstat"></span>
 </div>
 <main>
   <nav id="docs" aria-label="Documents"></nav>
@@ -96,6 +95,7 @@
     <div class="empty">
       <h2>Open a chunks file to start</h2>
       Choose the <code>chunks.jsonl</code> created by <code>chunker.py</code>. The file is read in your browser and is not uploaded anywhere.
+      <br><br>For semantic search, start the page with <code>python viewer_server.py</code> instead: it loads the chunks automatically.
     </div>
   </section>
 </main>
@@ -104,10 +104,7 @@ const $ = s => document.querySelector(s);
 let docs = new Map(), current = null, order = [];
 const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
-$('#file').addEventListener('change', async e => {
-  const f = e.target.files[0]; if (!f) return;
-  $('#stat').textContent = 'Reading…';
-  const text = await f.text();
+function loadChunks(text) {
   docs = new Map(); let n = 0, bad = 0;
   for (const line of text.split('\n')) {
     if (!line.trim()) continue;
@@ -123,6 +120,12 @@ $('#file').addEventListener('change', async e => {
   $('#stat').textContent = `${docs.size} documents, ${n} chunks` + (bad ? `, ${bad} unreadable lines skipped` : '');
   renderList();
   if (order.length) open(order[0].id);
+}
+
+$('#file').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $('#stat').textContent = 'Reading…';
+  loadChunks(await f.text());
 });
 
 function matches(c, q, t) {
@@ -202,116 +205,59 @@ $('#q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeou
 $('#type').addEventListener('change', () => { renderList(); if (current != null) open(current); });
 $('#embed').addEventListener('change', () => current != null && open(current));
 // ------------------------------------------------------------------ semantic search
-const sem = {vectors: null, dims: 0, meta: null, extractor: null, loading: null};
+// Runs in viewer_server.py (Python + ONNX, same model as cluster.py).
+const served = location.protocol.startsWith('http');
+let semReady = false;
 
-function parseNpy(buf) {
-  const bytes = new Uint8Array(buf);
-  if (String.fromCharCode(...bytes.slice(1, 6)) !== 'NUMPY') throw new Error('not a .npy file');
-  const major = bytes[6];
-  const hlen = major >= 2 ? new DataView(buf).getUint32(8, true) : new DataView(buf).getUint16(8, true);
-  const start = major >= 2 ? 12 : 10;
-  const header = new TextDecoder().decode(bytes.slice(start, start + hlen));
-  if (!/'descr':\s*'<f4'/.test(header)) throw new Error('expected float32 vectors, found ' + header);
-  if (/'fortran_order':\s*True/.test(header)) throw new Error('fortran order not supported');
-  const shape = header.match(/'shape':\s*\((\d+),\s*(\d+)\)/);
-  const offset = start + hlen;
-  const n = +shape[1], d = +shape[2];
-  return {data: new Float32Array(buf.slice(offset, offset + n * d * 4)), n, d};
-}
-
-$('#embfiles').addEventListener('change', async e => {
-  const files = [...e.target.files];
-  const npy = files.find(f => f.name.endsWith('.npy')), js = files.find(f => f.name.endsWith('.json'));
-  if (!npy || !js) { $('#semstat').textContent = 'Select both files at once: embeddings.npy and embeddings.json.'; return; }
-  try {
-    $('#semstat').textContent = 'Reading embeddings…';
-    const meta = JSON.parse(await js.text());
-    const arr = parseNpy(await npy.arrayBuffer());
-    if (arr.n !== meta.chunk_ids.length) throw new Error(`${arr.n} vectors but ${meta.chunk_ids.length} chunk ids`);
-    if (meta.backend !== 'onnx') throw new Error(`embeddings made with '${meta.backend}', expected onnx`);
-    Object.assign(sem, {vectors: arr.data, dims: arr.d, meta, extractor: null, loading: null});
-    const known = new Set(); for (const d of docs.values()) for (const c of d.chunks) known.add(c.chunk_id);
-    const missing = docs.size ? meta.chunk_ids.filter(id => !known.has(id)).length : 0;
-    $('#semstat').textContent = `${arr.n} vectors (${arr.d} dims), model ${meta.model}` +
-      (missing ? ` · ${missing} ids not in the open chunks file: regenerate the embeddings` : '');
-    $('#sq').disabled = $('#sgo').disabled = false;
-  } catch (err) {
-    $('#semstat').textContent = 'Could not read the embeddings: ' + err.message;
+async function checkServer() {
+  if (!served) {
+    $('#semstat').textContent = 'Semantic search needs the local server: run  python viewer_server.py  and use the page it opens.';
+    return;
   }
-});
-
-// the saved .onnx file decides which variant the browser must load, so the
-// question is embedded exactly like the chunks were
-function dtypeFor(onnxFile) {
-  const f = (onnxFile || '').split('/').pop();
-  const map = {'model.onnx': 'fp32', 'model_fp16.onnx': 'fp16', 'model_quantized.onnx': 'q8',
-               'model_int8.onnx': 'int8', 'model_uint8.onnx': 'uint8', 'model_q4.onnx': 'q4',
-               'model_q4f16.onnx': 'q4f16', 'model_bnb4.onnx': 'bnb4'};
-  return map[f];
-}
-
-async function getExtractor() {
-  if (sem.extractor) return sem.extractor;
-  if (sem.loading) return sem.loading;
-  const m = sem.meta;
-  if (/^[A-Za-z]:|^\/|^\./.test(m.model)) throw new Error('the embeddings were made with a local model folder; the browser can only load models from Hugging Face');
-  const dtype = dtypeFor(m.onnx_file);
-  if (!dtype) throw new Error(`don't know how to load ${m.onnx_file} in the browser`);
-  sem.loading = (async () => {
-    $('#semstat').textContent = `Loading the model in the browser (${dtype}; the first time it downloads ${dtype === 'fp32' ? 'about 1 GB' : 'a few hundred MB'}, then it is cached)…`;
-    const {pipeline, env} = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3');
-    env.allowLocalModels = false;
-    let last = 0;
-    sem.extractor = await pipeline('feature-extraction', m.model, {
-      dtype,
-      progress_callback: p => {
-        if (p.status === 'progress' && p.total > 5e6 && Date.now() - last > 300) {
-          last = Date.now();
-          $('#semstat').textContent = `Downloading ${p.file}: ${Math.round(p.progress)}%`;
-        }
-      },
-    });
-    return sem.extractor;
-  })();
-  try { return await sem.loading; } catch (e) { sem.loading = null; throw e; }
+  try {
+    const info = await (await fetch('/api/info')).json();
+    if (!info.embeddings) { $('#semstat').textContent = info.error; return; }
+    const base = `${info.count} chunks · ${info.model.split('/').pop()} (${(info.onnx_file || '').split('/').pop()})` +
+      (info.missing_ids ? ` · ${info.missing_ids} embedded ids are not in the chunks file: re-run cluster.py` : '');
+    if (info.model_state === 'error') { $('#semstat').textContent = 'Model error: ' + info.error; return; }
+    semReady = true;
+    $('#sq').disabled = $('#sgo').disabled = false;
+    $('#semstat').textContent = info.model_state === 'ready' ? base : base + ' · loading the model…';
+    if (info.model_state !== 'ready') setTimeout(checkServer, 1500);
+  } catch (err) {
+    $('#semstat').textContent = 'Local server not reachable: ' + err.message;
+  }
 }
 
 async function semanticSearch() {
   const q = $('#sq').value.trim();
-  if (!q || !sem.vectors) return;
-  if (!docs.size) { $('#semstat').textContent = 'Open the chunks file first.'; return; }
+  if (!q || !semReady) return;
+  if (!docs.size) { $('#semstat').textContent = 'The chunks are not loaded yet.'; return; }
   $('#sgo').disabled = true;
+  const k = +$('#topk').value;
+  $('#semstat').textContent = 'Searching…';
   try {
-    const ex = await getExtractor();
-    $('#semstat').textContent = 'Embedding the sentence…';
-    const out = await ex((sem.meta.query_prefix || '') + q, {pooling: 'mean', normalize: true});
-    const v = out.data;
-    if (v.length !== sem.dims) throw new Error(`the model returned ${v.length} dims, the saved vectors have ${sem.dims}`);
-    const n = sem.meta.chunk_ids.length, d = sem.dims, scores = new Float32Array(n);
-    for (let i = 0; i < n; i++) {
-      let s = 0; const o = i * d;
-      for (let j = 0; j < d; j++) s += sem.vectors[o + j] * v[j];
-      scores[i] = s;
-    }
-    const k = +$('#topk').value;
-    const idx = [...scores.keys()].sort((a, b) => scores[b] - scores[a]).slice(0, k);
+    const res = await fetch('/api/search', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                            body: JSON.stringify({query: q, k})});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.status);
     const byId = new Map(); for (const doc of docs.values()) for (const c of doc.chunks) byId.set(c.chunk_id, c);
     current = null;
     document.querySelectorAll('#docs button').forEach(b => b.setAttribute('aria-current', false));
     $('#view').innerHTML = `<h2 class="doctitle">Semantic results</h2>
       <div class="docmeta">Chunks closest in meaning to “${esc(q)}”. Click one to open it in its document.</div>` +
-      idx.map(i => {
-        const id = sem.meta.chunk_ids[i], c = byId.get(id);
-        if (!c) return `<div class="result"><div class="rt"><span class="score">${scores[i].toFixed(3)}</span><b>${esc(id)}</b> (not in the open chunks file)</div></div>`;
+      data.results.map(({chunk_id: id, score}) => {
+        const c = byId.get(id);
+        if (!c) return `<div class="result"><div class="rt"><span class="score">${score.toFixed(3)}</span><b>${esc(id)}</b> (not in the open chunks file)</div></div>`;
         return `<button class="result" data-doc="${c.doc_id}" data-chunk="${esc(id)}">
-          <div class="rt"><span class="score">${scores[i].toFixed(3)}</span><b>${esc(c.title || c.doc_name)}</b></div>
+          <div class="rt"><span class="score">${score.toFixed(3)}</span><b>${esc(c.title || c.doc_name)}</b></div>
           <div class="rmeta">${esc(c.doc_name)} · ${esc(id)} · ${esc(c.record_type)}${c.pedido ? ' · pedido ' + esc(c.pedido) : ''}</div>
           <pre class="rtext">${esc(c.text)}</pre>
           <div class="ropen">Open in document</div>
         </button>`;
       }).join('');
     $('#view').scrollTop = 0;
-    $('#semstat').textContent = `Top ${k} of ${n} chunks.`;
+    $('#semstat').textContent = `Top ${data.results.length} in ${data.ms} ms.`;
   } catch (err) {
     $('#semstat').textContent = 'Semantic search failed: ' + err.message;
   } finally {
@@ -319,6 +265,12 @@ async function semanticSearch() {
   }
 }
 $('#sgo').addEventListener('click', semanticSearch);
+if (served) {
+  $('#stat').textContent = 'Loading chunks from the local server…';
+  fetch('/api/chunks').then(r => r.text()).then(loadChunks)
+    .catch(err => { $('#stat').textContent = 'Could not load chunks: ' + err.message; });
+}
+checkServer();
 $('#sq').addEventListener('keydown', e => { if (e.key === 'Enter') semanticSearch(); });
 
 $('#view').addEventListener('click', e => {

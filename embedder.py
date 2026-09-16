@@ -3,7 +3,9 @@ Text embeddings with ONNX Runtime (no torch / sentence-transformers).
 
     pip install onnxruntime tokenizers huggingface_hub numpy
 
-Default model: onnx-community/multilingual-e5-base-ONNX (768 dims).
+Default model: raludi/bge-m3-onnx-int8 (BGE-M3, int8 quantized, 1024 dims, ~570 MB).
+Also works with onnx-community/multilingual-e5-base-ONNX and similar exports
+(repo with onnx/<file>.onnx + tokenizer.json).
 The model files are downloaded once to the Hugging Face cache.
 
     from embedder import Embedder
@@ -12,8 +14,10 @@ The model files are downloaded once to the Hugging Face cache.
     q = emb.encode(["minha pergunta"], kind="query")   # questions
     # both are L2-normalised: similarity = P @ q[0]
 
-E5 models expect the prefixes "passage: " and "query: "; encode() adds them.
-Pooling = mean of the token vectors (ignoring padding), as E5 was trained.
+Model-specific details are handled automatically:
+- pooling: read from 1_Pooling/config.json when the repo has it; otherwise
+  CLS for BGE models and mean for E5 (how each model was trained)
+- prefixes: E5 needs "passage: " / "query: "; BGE-M3 needs none
 
 Command line check:
     python embedder.py "como liberar pedido"     # prints the vector size and a few values
@@ -21,16 +25,22 @@ Command line check:
 import os, sys, time
 import numpy as np
 
-DEFAULT_MODEL = "onnx-community/multilingual-e5-base-ONNX"
-DEFAULT_FILE = "onnx/model.onnx"      # onnx/model_quantized.onnx is ~4x smaller and faster, slightly less precise
+DEFAULT_MODEL = "raludi/bge-m3-onnx-int8"
+DEFAULT_FILE = "onnx/model.onnx"
 
 class Embedder:
-    def __init__(self, model=DEFAULT_MODEL, onnx_file=DEFAULT_FILE, max_length=512, threads=None,
+    def __init__(self, model=DEFAULT_MODEL, onnx_file=DEFAULT_FILE, max_length=None, threads=None,
                  local_dir=None):
         import onnxruntime as ort
         from tokenizers import Tokenizer
+        name = model.lower()
+        # BGE-M3 reads up to 8192 tokens; 2048 covers the largest chunks (~6000 chars)
+        # without the memory cost of the full length. E5 is limited to 512.
+        if max_length is None:
+            max_length = 2048 if "bge-m3" in name else 512
         self.model, self.onnx_file, self.max_length = model, onnx_file, max_length
         model_path, tok_path = self._files(model, onnx_file, local_dir)
+        self.pooling = self._pooling(model, local_dir) or ("cls" if "bge" in name else "mean")
 
         self.tok = Tokenizer.from_file(tok_path)
         self.tok.enable_truncation(max_length=max_length)
@@ -43,9 +53,34 @@ class Embedder:
         so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         self.session = ort.InferenceSession(model_path, so, providers=["CPUExecutionProvider"])
         self.inputs = {i.name for i in self.session.get_inputs()}
-        self.output = self.session.get_outputs()[0].name
-        e5 = "e5" in model.lower()
+        outs = [o.name for o in self.session.get_outputs()]
+        self.output = "last_hidden_state" if "last_hidden_state" in outs else outs[0]
+        e5 = "e5" in name
         self.prefix = {"passage": "passage: " if e5 else "", "query": "query: " if e5 else ""}
+
+    @staticmethod
+    def _pooling(model, local_dir):
+        """Pooling declared by the sentence-transformers config, if the repo has one."""
+        import json
+        path = None
+        base = local_dir or (model if os.path.isdir(model) else None)
+        if base:
+            p = os.path.join(base, "1_Pooling", "config.json")
+            path = p if os.path.exists(p) else None
+        else:
+            from huggingface_hub import hf_hub_download
+            for local_only in (True, False):
+                try:
+                    path = hf_hub_download(model, "1_Pooling/config.json", local_files_only=local_only)
+                    break
+                except Exception:
+                    pass
+        if not path:
+            return None
+        cfg = json.load(open(path, encoding="utf-8"))
+        if cfg.get("pooling_mode_cls_token"): return "cls"
+        if cfg.get("pooling_mode_mean_tokens"): return "mean"
+        return None
 
     @staticmethod
     def _files(model, onnx_file, local_dir):
@@ -55,6 +90,17 @@ class Embedder:
         if os.path.isdir(model):
             return os.path.join(model, onnx_file), os.path.join(model, "tokenizer.json")
         from huggingface_hub import hf_hub_download
+        # use the local Hugging Face cache first (no network), download only if missing
+        try:
+            m = hf_hub_download(model, onnx_file, local_files_only=True)
+            tok = hf_hub_download(model, "tokenizer.json", local_files_only=True)
+            try:
+                hf_hub_download(model, onnx_file + "_data", local_files_only=True)
+            except Exception:
+                pass
+            return m, tok
+        except Exception:
+            pass
         try:
             m = hf_hub_download(model, onnx_file)
         except Exception as e:
@@ -72,7 +118,7 @@ class Embedder:
             pass
         return m, hf_hub_download(model, "tokenizer.json")
 
-    def encode(self, texts, kind="passage", batch_size=16, progress=False):
+    def encode(self, texts, kind="passage", batch_size=8, progress=False):
         if isinstance(texts, str): texts = [texts]
         texts = [self.prefix[kind] + t for t in texts]
         # sort by length so each batch pads to a similar size (much faster)
@@ -88,7 +134,9 @@ class Embedder:
             if "token_type_ids" in self.inputs:
                 feed["token_type_ids"] = np.zeros_like(ids)
             hidden = self.session.run([self.output], {k: v for k, v in feed.items() if k in self.inputs})[0]
-            if hidden.ndim == 3:                                   # token vectors -> mean pooling
+            if hidden.ndim == 3 and self.pooling == "cls":        # first token (<s>)
+                vec = hidden[:, 0]
+            elif hidden.ndim == 3:                                 # mean of the real tokens
                 m = mask[..., None].astype(np.float32)
                 vec = (hidden * m).sum(1) / np.maximum(m.sum(1), 1e-9)
             else:                                                  # model already pooled
@@ -107,4 +155,5 @@ class Embedder:
 if __name__ == "__main__":
     e = Embedder()
     v = e.encode(" ".join(sys.argv[1:]) or "teste", kind="query")
-    print(v.shape, v[0][:5])
+    print(f"model {e.model} | pooling {e.pooling} | max tokens {e.max_length} | vector {v.shape}")
+    print(v[0][:5])

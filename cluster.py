@@ -6,7 +6,7 @@ Cluster the chunks and check how well they are separated and linked.
 
     python cluster.py chunks_titled.jsonl                     # embeddings (downloads the model once)
     python cluster.py chunks_titled.jsonl --tfidf             # no model, word statistics only
-    python cluster.py chunks_titled.jsonl --onnx-file onnx/model_quantized.onnx   # faster
+    python cluster.py chunks_titled.jsonl --model onnx-community/multilingual-e5-base-ONNX --embeddings emb_e5
 
 Embeddings are saved next to the script as embeddings.npy + embeddings.json
 (--embeddings to change the name) and reused on the next run: only new or
@@ -28,11 +28,13 @@ ap = argparse.ArgumentParser()
 ap.add_argument("chunks", nargs="?", default="chunks_titled.jsonl")
 ap.add_argument("--out", default="cluster_out")
 ap.add_argument("--tfidf", action="store_true", help="use TF-IDF instead of an embedding model")
-ap.add_argument("--model", default="onnx-community/multilingual-e5-base-ONNX",
+ap.add_argument("--model", default="raludi/bge-m3-onnx-int8",
                 help="Hugging Face ONNX repo, or a local folder with the same layout")
 ap.add_argument("--onnx-file", default="onnx/model.onnx",
-                help="which .onnx inside the repo (onnx/model_quantized.onnx is smaller and faster)")
-ap.add_argument("--batch", type=int, default=16)
+                help="which .onnx inside the repo")
+ap.add_argument("--max-length", type=int, default=None,
+                help="max tokens per chunk (default: 2048 for BGE-M3, 512 for E5)")
+ap.add_argument("--batch", type=int, default=8)
 ap.add_argument("--min-cluster", type=int, default=15, help="smallest group HDBSCAN may form")
 ap.add_argument("--k", type=int, default=5, help="neighbours kept per chunk")
 ap.add_argument("--with-header", action="store_true",
@@ -103,20 +105,19 @@ if use_tfidf:
 else:
     old = store.load(args.embeddings, required=False)
     reuse = {}
+    from embedder import Embedder
+    embedder = Embedder(args.model, args.onnx_file, max_length=args.max_length)
     if old and old["meta"]["model"] == args.model and old["meta"].get("onnx_file") == args.onnx_file \
-            and old["meta"]["text_mode"] == text_mode:
+            and old["meta"]["text_mode"] == text_mode and old["meta"].get("pooling") == embedder.pooling \
+            and old["meta"].get("max_length") == embedder.max_length:
         reuse = {h: old["vectors"][i] for i, h in enumerate(old["meta"]["hashes"])}
     hashes = [store.text_hash(t) for t in texts]
     todo = [i for i, h in enumerate(hashes) if h not in reuse]
     log(f"vectors: {args.model} | reused {len(texts) - len(todo)} from {args.embeddings}, "
         f"embedding {len(todo)} new/changed chunks")
     fresh = {}
-    e5 = "e5" in args.model.lower()
-    prefixes = {"passage": "passage: " if e5 else "", "query": "query: " if e5 else ""}
-    if todo:                                   # the model is only loaded when needed
-        from embedder import Embedder
-        embedder = Embedder(args.model, args.onnx_file)
-        prefixes = embedder.prefix
+    prefixes = embedder.prefix
+    if todo:
         V = embedder.encode([texts[i] for i in todo], kind="passage",
                             batch_size=args.batch, progress=True)
         fresh = {hashes[i]: v for i, v in zip(todo, V)}
@@ -125,6 +126,7 @@ else:
     store.save(args.embeddings, E, {
         "model": args.model, "backend": "onnx", "onnx_file": args.onnx_file,
         "passage_prefix": prefixes["passage"], "query_prefix": prefixes["query"],
+        "pooling": embedder.pooling, "max_length": embedder.max_length,
         "normalized": True,
         "text_mode": text_mode, "chunks_file": os.path.abspath(args.chunks),
         "chunk_ids": [r["chunk_id"] for r in rows], "hashes": hashes,
