@@ -2,6 +2,10 @@
 Give every chunk a readable title WITHOUT an LLM.
 
     python titler.py chunks.jsonl            -> writes chunks_titled.jsonl
+    python titler.py chunks.jsonl out.jsonl --menu=DADOS_MENU.csv
+
+Program names come from the ERP menu export when it is available
+(DADOS_MENU.csv), and are otherwise learned from the documents.
 
 Title = "<program name (CODE)> — <subject>"
 
@@ -17,10 +21,12 @@ Subject      : first source that works, in this order
                   ("tecle F9 ou clique no botão Lista ...").
 Only the Python standard library is used.
 """
-import json, re, sys, math, collections
+import json, os, re, sys, math, collections
 
-SRC = sys.argv[1] if len(sys.argv) > 1 else "chunks.jsonl"
-DST = sys.argv[2] if len(sys.argv) > 2 else "chunks_titled.jsonl"
+argv = [a for a in sys.argv[1:] if not a.startswith("--")]
+SRC = argv[0] if argv else "chunks.jsonl"
+DST = argv[1] if len(argv) > 1 else "chunks_titled.jsonl"
+MENU = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--menu=")), "DADOS_MENU.csv")
 MAX_SUBJECT = 90
 
 MODULES = "FATU|ESTO|PEDI|ADMI|EPRO|CFAB|MPSP|COMP|VEND|PREC|CEXC|RECE|MIND|CEXT|CPRO|CPAG|FVEN|TERC|CREC|CUST|FPAG|CONT|RHUM|CLAB|LFIS"
@@ -90,6 +96,11 @@ def clean_name(n):
     return n.strip(" -–")
 
 program_name = {}
+menu_names = {}
+if MENU and os.path.exists(MENU):
+    from menu_catalog import load_menu
+    menu_names = {c: m["name"] for c, m in load_menu(MENU).items() if m["name"]}
+    print(f"menu catalog: {len(menu_names)} official program names from {MENU}")
 for code, cnt in names.items():
     agg = collections.Counter()
     for n, k in cnt.items():
@@ -177,9 +188,12 @@ def subject(i, r):
     rest = re.sub(r"\[Imagem:[^\]]*\]", " ", t).strip()
     return shorten(h or rest[:80] or "(somente imagens)"), "inicio do texto"
 
+def name_of(c):
+    return menu_names.get(c) or program_name.get(c)
+
 def program_part(r):
     codes = r["main_programs"].split() or r["mentioned_programs"].split()[:1]
-    parts = [f"{program_name[c]} ({c})" if c in program_name else c for c in codes[:2]]
+    parts = [f"{name_of(c)} ({c})" if name_of(c) else c for c in codes[:2]]
     return " + ".join(parts)
 
 with open(DST, "w", encoding="utf-8") as f:
